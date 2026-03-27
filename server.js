@@ -100,6 +100,11 @@ function callerSaidAnythingMeaningful(transcript) {
   return true;
 }
 
+function cleanLine(text) {
+  if (!text || typeof text !== "string") return "";
+  return text.replace(/\s+/g, " ").trim();
+}
+
 function formatNoPersonaSms() {
   return (
     `Cold Call Coach\n` +
@@ -125,63 +130,44 @@ function formatCoachingSms(persona, analysis) {
   const percent = Math.round((score / 60) * 100);
 
   const strengths = Array.isArray(analysis.strengths)
-    ? analysis.strengths.slice(0, 1)
+    ? analysis.strengths.map(cleanLine).filter(Boolean).slice(0, 1)
     : [];
 
   const improvements = Array.isArray(analysis.improvements)
-    ? analysis.improvements.slice(0, 2)
+    ? analysis.improvements.map(cleanLine).filter(Boolean).slice(0, 2)
     : [];
 
-  const tip = analysis.coaching_tip || "Lead with a clear outcome.";
-
+  const tip = cleanLine(analysis.coaching_tip || "Lead with a clear outcome.");
   const conductFlag = analysis.conduct_flag || "clean";
-  const conductNote = analysis.conduct_note || "";
+  const conductNote = cleanLine(analysis.conduct_note || "");
 
   let sms = `Cold Call Coach:\n`;
   sms += `Persona: ${personaLabel}\n`;
   sms += `Score: ${score}/60 | ${percent}%\n`;
 
   if (conductFlag !== "clean" && conductNote) {
-    sms += `\nNote:\n- ${shorten(conductNote, 90)}\n`;
+    sms += `\nNote:\n- ${conductNote}\n`;
   }
 
   if (strengths.length > 0) {
-    sms += `\nWhat worked:\n- ${shorten(strengths[0], 90)}\n`;
+    sms += `\nWhat worked:\n- ${strengths[0]}\n`;
   }
 
   if (improvements.length > 0) {
-    sms += `\nFix next:\n- ${shorten(improvements[0], 105)}`;
+    sms += `\nFix next:\n- ${improvements[0]}`;
     if (improvements.length > 1) {
-      sms += `\n- ${shorten(improvements[1], 105)}`;
+      sms += `\n- ${improvements[1]}`;
     }
     sms += `\n`;
   }
 
-  sms += `\nTip: ${shorten(tip, 90)}\n`;
-  sms += `Run it again and beat your score.`;
-
-  if (sms.length > 700) {
-    sms =
-      `Cold Call Coach:\n` +
-      `Persona: ${personaLabel}\n` +
-      `Score: ${score}/60 | ${percent}%\n` +
-      `\nWhat worked:\n- ${shorten(strengths[0] || "You made a real attempt.", 80)}\n` +
-      `\nFix next:\n- ${shorten(improvements[0] || "Lead with a clearer value statement.", 90)}\n` +
-      `\nTip: ${shorten(tip, 75)}\n` +
-      `Run it again and beat your score.`;
+  if (tip) {
+    sms += `\nTip: ${tip}\n`;
   }
 
+  sms += `Run it again and beat your score.`;
+
   return sms;
-}
-
-function shorten(text, maxLength = 100) {
-  if (!text || typeof text !== "string") return "";
-
-  const cleaned = text.replace(/\s+/g, " ").trim();
-
-  if (cleaned.length <= maxLength) return cleaned;
-
-  return cleaned.slice(0, maxLength - 3).trim() + "...";
 }
 
 async function sendSmsBody(to, body) {
