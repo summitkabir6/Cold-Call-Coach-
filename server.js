@@ -108,7 +108,7 @@ function cleanLine(text) {
 function formatNoPersonaSms() {
   return (
     `Cold Call Coach\n` +
-    `No persona was selected on this call, so no scoring was completed.\n\n` +
+    `No persona was selected on this call, so no coaching feedback was generated.\n\n` +
     `Call back, choose a persona, and try a full practice round.`
   );
 }
@@ -119,19 +119,13 @@ function formatNoSpeechSms(persona) {
   return (
     `Cold Call Coach\n` +
     `Persona: ${personaLabel}\n` +
-    `No usable caller speech was detected, so this call could not be graded.\n\n` +
-    `Try again and speak with the persona to receive a score and feedback.`
+    `No usable caller speech was detected, so this call could not be reviewed.\n\n` +
+    `Try again and speak with the persona to receive feedback.`
   );
 }
 
 function formatCoachingSms(persona, analysis) {
   const personaLabel = persona || "Prospect";
-  const score = Number(analysis.score || 0);
-  const percent = Math.round((score / 60) * 100);
-
-  const strengths = Array.isArray(analysis.strengths)
-    ? analysis.strengths.map(cleanLine).filter(Boolean).slice(0, 1)
-    : [];
 
   const improvements = Array.isArray(analysis.improvements)
     ? analysis.improvements.map(cleanLine).filter(Boolean).slice(0, 2)
@@ -143,14 +137,9 @@ function formatCoachingSms(persona, analysis) {
 
   let sms = `Cold Call Coach:\n`;
   sms += `Persona: ${personaLabel}\n`;
-  sms += `Score: ${score}/60 | ${percent}%\n`;
 
   if (conductFlag !== "clean" && conductNote) {
     sms += `\nNote:\n- ${conductNote}\n`;
-  }
-
-  if (strengths.length > 0) {
-    sms += `\nWhat worked:\n- ${strengths[0]}\n`;
   }
 
   if (improvements.length > 0) {
@@ -165,7 +154,7 @@ function formatCoachingSms(persona, analysis) {
     sms += `\nTip: ${tip}\n`;
   }
 
-  sms += `Run it again and beat your score.`;
+  sms += `Run it again and sharpen your next call.`;
 
   return sms;
 }
@@ -207,60 +196,24 @@ TRANSCRIPT:
 ${transcript}
 
 ==================================================
-SCORING PHILOSOPHY
+EVALUATION PHILOSOPHY
 ==================================================
 
-You are strict, but realistic.
+You are strict, realistic, and useful and must communicate like a real sales coach.
 
-Use the full range from 1–10.
-
-Do NOT compress all scores toward the bottom.
-
-Score meaning:
-
-1–2 = extremely poor  
-- incoherent, confusing, no value, collapses immediately  
-
-3–4 = weak  
-- effort exists but poor execution, unclear, low relevance  
-
-5–6 = average  
-- understandable, somewhat relevant, but not compelling  
-
-7–8 = strong  
-- clear, relevant, confident, handles friction reasonably well  
-
-9–10 = excellent  
-- sharp, persuasive, highly relevant, strong control and close  
-
-IMPORTANT:
-- A real attempt should NOT result in all 1s or 2s
-- Average should land around 5–6
-- Only give extremely low scores if clearly deserved
-
-==================================================
-EVALUATION CATEGORIES
-==================================================
-
-Score each from 1–10:
-
-1. clarity  
-2. relevance  
-3. objections  
-4. understanding  
-5. control  
-6. closing  
+You are not here to flatter the caller.
+You are here to identify what actually hurt the call and how to improve it.
 
 ==================================================
 PERSONA-SPECIFIC LENS
 ==================================================
 
 Morgan (CFO):
-- prioritize ROI clarity, numbers, financial logic
+- prioritize ROI clarity, numbers, and financial logic
 - punish vague benefits
 
 Jamie (CEO):
-- prioritize speed, sharpness, getting to the point
+- prioritize speed, sharpness, and getting to the point
 - punish rambling
 
 Linda (Gatekeeper):
@@ -298,7 +251,6 @@ conduct_note:
 
 IMPORTANT:
 - Do NOT invent misconduct
-- If joking dominates the call, scoring should be low
 
 ==================================================
 COACHING QUALITY RULES
@@ -310,7 +262,7 @@ DO NOT use generic advice.
 
 Avoid:
 - “be more specific”
-- “good clarity”
+- “good effort”
 - “improve your pitch”
 
 Instead:
@@ -343,8 +295,10 @@ CONCISE BUT SPECIFIC (CRITICAL)
 
 Each improvement must be:
 
-- short (under 18 words)
-- but still specific and grounded in the call
+- short
+- specific
+- grounded in the call
+- directly usable on the next attempt
 
 Do NOT make improvements generic.
 
@@ -360,8 +314,6 @@ Bad:
 Good:
 “When asked for outcome, you didn’t have a clear answer”
 
-Each line should feel like the caller can remember the exact moment.
-
 ==================================================
 IMPROVEMENT QUALITY
 ==================================================
@@ -374,17 +326,13 @@ Each improvement must:
 Keep improvements sharp and actionable.
 
 ==================================================
-SUMMARY STYLE
+COACHING TIP
 ==================================================
 
-Summary should be:
-- 1 sentence
-- slightly challenging
-- not soft or generic
-
-Examples:
-- “You were clear, but not compelling enough to move the conversation forward.”
-- “You lost control early and never recovered.”
+coaching_tip should be:
+- one clear next action
+- concise
+- practical
 
 ==================================================
 OUTPUT RULES
@@ -393,20 +341,9 @@ OUTPUT RULES
 Return ONLY valid JSON.
 
 {
-  "score_breakdown": {
-    "clarity": number,
-    "relevance": number,
-    "objections": number,
-    "understanding": number,
-    "control": number,
-    "closing": number
-  },
-  "score": number,
-  "strengths": ["string", "string"],
   "improvements": ["string", "string"],
   "coaching_tip": "string",
   "summary": "string",
-  "tone": "poor" | "average" | "strong",
   "conduct_flag": "clean" | "joking" | "inappropriate",
   "conduct_note": "string"
 }
@@ -415,15 +352,9 @@ Return ONLY valid JSON.
 ADDITIONAL RULES
 ==================================================
 
-- score = sum of category scores
-- strengths: max 2, high-signal only
 - improvements: max 2, must be specific
 - coaching_tip: 1 clear next action
 - summary: 1 sentence
-- tone mapping:
-  poor = 6–23
-  average = 24–41
-  strong = 42–60
 - If conduct_flag = "clean", conduct_note must be empty
 `;
 
@@ -504,7 +435,7 @@ app.post("/retell-webhook", async (req, res) => {
     try {
       await sendSmsBody(
         callerNumber,
-        `Cold Call Coach\nWe ran into an issue processing this call, so no score was generated.\n\nPlease try again.`
+        `Cold Call Coach\nWe ran into an issue processing this call, so no feedback was generated.\n\nPlease try again.`
       );
     } catch (smsError) {
       console.error("Fallback SMS failed:", smsError.message);
