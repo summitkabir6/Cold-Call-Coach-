@@ -464,6 +464,7 @@ ADDITIONAL RULES
 
 // ===== WEBHOOK =====
 app.post("/retell-webhook", async (req, res) => {
+  console.log("FULL BODY:", JSON.stringify(req.body, null, 2));
   const event = req.body.event;
 
   console.log("Webhook event received:", event);
